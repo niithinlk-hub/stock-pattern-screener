@@ -137,7 +137,7 @@ def download_batch(
     tickers : tuple[str]
         Must be a tuple so Streamlit can hash it for caching.
     period : str
-        yfinance period string, e.g. '6mo', '1y', '2y'.
+        yfinance period string, e.g. '6mo', '1y', '2y', '3y'.
     interval : str
         yfinance interval string, e.g. '1d', '1wk'.
 

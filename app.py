@@ -159,7 +159,7 @@ def _render_sidebar() -> dict:
             min_value=50, max_value=500, value=100, step=50,
             help="More stocks = more comprehensive but slower. 100 takes ~30 s on first run.",
         )
-        period = st.selectbox("Data period", ["6mo", "1y", "2y"], index=1)
+        period = st.selectbox("Data period", ["6mo", "1y", "2y", "3y"], index=1)
 
         st.divider()
         st.markdown("### 🔍 Filters")
