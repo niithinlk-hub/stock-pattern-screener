@@ -12,6 +12,20 @@ from io import StringIO
 import warnings
 warnings.filterwarnings("ignore")
 
+# ── S&P 500 fallback — top 100 by market cap (used if GitHub CSV fetch fails) ─
+_SP500_FALLBACK = [
+    "AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "GOOG", "BRK-B", "TSLA",
+    "AVGO", "JPM", "LLY", "UNH", "V", "XOM", "MA", "COST", "HD", "PG", "NFLX",
+    "WMT", "JNJ", "ORCL", "BAC", "CRM", "CVX", "ABBV", "KO", "AMD", "WFC",
+    "MRK", "CSCO", "NOW", "TMO", "ACN", "LIN", "ISRG", "IBM", "GE", "AMGN",
+    "CAT", "QCOM", "TXN", "AXP", "PEP", "GS", "MS", "SPGI", "UBER", "BKNG",
+    "PM", "INTU", "UNP", "HON", "LOW", "NEE", "AMAT", "ETN", "RTX", "VRTX",
+    "PANW", "SYK", "BLK", "TJX", "SBUX", "ADI", "GILD", "PLD", "ADP", "SCHW",
+    "MDT", "FI", "MU", "DE", "ELV", "REGN", "CB", "INTC", "LRCX", "PH",
+    "KLAC", "MDLZ", "BA", "DUK", "SO", "CI", "EOG", "PYPL", "SNPS", "APH",
+    "CME", "CDNS", "BMY", "ICE", "MCO", "WELL", "WM", "ABNB", "CL", "SHW",
+]
+
 # ── NSE request headers to reduce blocking probability ────────────────────────
 _NSE_HEADERS = {
     "User-Agent": (
@@ -46,7 +60,8 @@ _NIFTY50_FALLBACK = [
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_sp500_tickers() -> tuple[list[str], pd.DataFrame]:
     """
-    Fetch the S&P 500 constituent list from Wikipedia.
+    Fetch the S&P 500 constituent list from a public GitHub CSV dataset.
+    Falls back to a hardcoded top-100 list if the fetch fails.
 
     Returns
     -------
@@ -55,26 +70,33 @@ def get_sp500_tickers() -> tuple[list[str], pd.DataFrame]:
     info_df : pd.DataFrame
         Columns: ticker, name, sector.
     """
+    csv_url = (
+        "https://raw.githubusercontent.com/datasets/s-and-p-500-companies"
+        "/main/data/constituents.csv"
+    )
     try:
-        url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-        tables = pd.read_html(url, flavor=["lxml", "html5lib"])
-        df = tables[0]
+        resp = requests.get(csv_url, timeout=12)
+        resp.raise_for_status()
+        df = pd.read_csv(StringIO(resp.text))
 
-        # Wikipedia column names can vary slightly
-        sym_col = next(c for c in df.columns if "symbol" in c.lower() or "ticker" in c.lower())
-        name_col = next((c for c in df.columns if "security" in c.lower() or "name" in c.lower()), sym_col)
-        sector_col = next((c for c in df.columns if "sector" in c.lower()), None)
-
-        symbols = df[sym_col].str.replace(".", "-", regex=False).tolist()
-        names = df[name_col].tolist()
-        sectors = df[sector_col].tolist() if sector_col else ["N/A"] * len(symbols)
+        # CSV columns: Symbol, Name, Sector
+        symbols = df["Symbol"].str.replace(".", "-", regex=False).tolist()
+        names = df["Name"].tolist()
+        sectors = df["Sector"].tolist()
 
         info_df = pd.DataFrame({"ticker": symbols, "name": names, "sector": sectors})
         return symbols, info_df
 
     except Exception as exc:
-        st.warning(f"Could not fetch S&P 500 list from Wikipedia: {exc}")
-        return [], pd.DataFrame(columns=["ticker", "name", "sector"])
+        st.warning(
+            f"Could not fetch S&P 500 list ({exc}). Using top-100 fallback list."
+        )
+        info_df = pd.DataFrame({
+            "ticker": _SP500_FALLBACK,
+            "name": _SP500_FALLBACK,
+            "sector": ["N/A"] * len(_SP500_FALLBACK),
+        })
+        return _SP500_FALLBACK, info_df
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
