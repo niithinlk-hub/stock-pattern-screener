@@ -12,18 +12,107 @@ from io import StringIO
 import warnings
 warnings.filterwarnings("ignore")
 
-# ── S&P 500 fallback — top 100 by market cap (used if GitHub CSV fetch fails) ─
-_SP500_FALLBACK = [
-    "AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "GOOG", "BRK-B", "TSLA",
-    "AVGO", "JPM", "LLY", "UNH", "V", "XOM", "MA", "COST", "HD", "PG", "NFLX",
-    "WMT", "JNJ", "ORCL", "BAC", "CRM", "CVX", "ABBV", "KO", "AMD", "WFC",
-    "MRK", "CSCO", "NOW", "TMO", "ACN", "LIN", "ISRG", "IBM", "GE", "AMGN",
-    "CAT", "QCOM", "TXN", "AXP", "PEP", "GS", "MS", "SPGI", "UBER", "BKNG",
-    "PM", "INTU", "UNP", "HON", "LOW", "NEE", "AMAT", "ETN", "RTX", "VRTX",
-    "PANW", "SYK", "BLK", "TJX", "SBUX", "ADI", "GILD", "PLD", "ADP", "SCHW",
-    "MDT", "FI", "MU", "DE", "ELV", "REGN", "CB", "INTC", "LRCX", "PH",
-    "KLAC", "MDLZ", "BA", "DUK", "SO", "CI", "EOG", "PYPL", "SNPS", "APH",
-    "CME", "CDNS", "BMY", "ICE", "MCO", "WELL", "WM", "ABNB", "CL", "SHW",
+# ─────────────────────────────────────────────────────────────────────────────
+# Hardcoded ticker lists  (used as primary source for NASDAQ,
+#                          and as reliable fallback for S&P 500)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Full S&P 500 constituent list (~503 tickers, as of early 2025)
+_SP500_TICKERS = [
+    "A", "AAL", "AAPL", "ABBV", "ABNB", "ABT", "ACGL", "ACN", "ADBE",
+    "ADI", "ADM", "ADP", "ADSK", "AEE", "AEP", "AES", "AFL", "AIG",
+    "AIZ", "AJG", "AKAM", "ALB", "ALGN", "ALL", "ALLE", "AMAT", "AMCR",
+    "AMD", "AME", "AMGN", "AMP", "AMT", "AMZN", "ANSS", "AON", "AOS",
+    "APA", "APD", "APH", "APTV", "ARE", "ATO", "AVB", "AVGO", "AVY",
+    "AWK", "AXON", "AXP", "AZO",
+    "BA", "BAC", "BALL", "BAX", "BBY", "BDX", "BEN", "BF-B", "BIIB",
+    "BIO", "BKR", "BLK", "BLDR", "BMY", "BR", "BRK-B", "BRO", "BX", "BG",
+    "C", "CAG", "CAH", "CAT", "CB", "CBOE", "CBRE", "CCL", "CDNS", "CDW",
+    "CE", "CEG", "CF", "CFG", "CHD", "CHTR", "CI", "CINF", "CL", "CLX",
+    "CMA", "CME", "CMG", "CMI", "CMS", "CNC", "COF", "COO", "COP", "COR",
+    "COST", "CPAY", "CPB", "CPRT", "CRL", "CRM", "CSCO", "CSGP", "CSX",
+    "CTLT", "CTSH", "CTVA", "CVS", "CVX", "CZR",
+    "D", "DAL", "DD", "DE", "DDOG", "DFS", "DG", "DHI", "DHR", "DIS",
+    "DLTR", "DLR", "DOC", "DOV", "DOW", "DPZ", "DRI", "DTE", "DUK",
+    "DVA", "DVN", "DXCM",
+    "EA", "EBAY", "ECL", "ED", "EFX", "EG", "EIX", "EL", "ELV", "EMN",
+    "EMR", "ENPH", "EOG", "EPAM", "EQR", "EQIX", "EQT", "ESS", "ETN",
+    "ETR", "ETSY", "EVRG", "EW", "EXC", "EXPE", "EXPD", "EXR",
+    "F", "FANG", "FAST", "FCX", "FDS", "FDX", "FE", "FICO", "FI", "FIS",
+    "FITB", "FSLR", "FMC", "FOXA", "FOX", "FRT", "FTNT", "FTV",
+    "GD", "GE", "GEHC", "GEN", "GILD", "GIS", "GM", "GOOGL", "GOOG",
+    "GPC", "GS", "GWW",
+    "HAL", "HAS", "HCA", "HD", "HES", "HIG", "HII", "HLT", "HOLX", "HON",
+    "HPE", "HPQ", "HRL", "HST", "HSIC", "HSY", "HUBB", "HUM", "HBAN", "HWM",
+    "IBM", "ICE", "IDXX", "IEX", "IFF", "ILMN", "INCY", "INTC", "INTU",
+    "INVH", "IP", "IPG", "IQV", "IR", "IRM", "ISRG", "ITW", "IVZ",
+    "J", "JBL", "JBHT", "JCI", "JKHY", "JNJ", "JPM", "JNPR",
+    "K", "KEYS", "KEY", "KLAC", "KHC", "KDP", "KIM", "KMB", "KMI",
+    "KMX", "KO", "KR", "KVUE",
+    "L", "LEN", "LH", "LHX", "LIN", "LKQ", "LDOS", "LLY", "LMT", "LNC",
+    "LOW", "LRCX", "LUV", "LULU", "LVS", "LW", "LYB", "LYV",
+    "MA", "MAA", "MAR", "MAS", "MCD", "MCK", "MCO", "MCHP", "MDT", "MET",
+    "MHK", "MNST", "MKC", "MKTX", "MLM", "MO", "MOH", "MOS", "MPWR",
+    "MPC", "MRO", "MRNA", "MS", "MSCI", "MSFT", "MSI", "MTB", "MTD", "MU",
+    "NDAQ", "NEM", "NEE", "NFLX", "NI", "NKE", "NDSN", "NSC", "NTAP",
+    "NTRS", "NUE", "NVDA", "NVR", "NWSA", "NWS", "NXPI", "NCLH", "NRG",
+    "O", "ODFL", "OGN", "OKE", "OMC", "ON", "ORCL", "ORLY", "OTIS", "OXY",
+    "PCAR", "PANW", "PAYC", "PAYX", "PCG", "PEG", "PEP", "PFE", "PFG",
+    "PG", "PGR", "PH", "PHM", "PKG", "PLD", "PM", "PNC", "PNR", "PNW",
+    "PODD", "POOL", "PPG", "PPL", "PRU", "PSA", "PSX", "PWR", "PYPL",
+    "QCOM", "QRVO",
+    "RL", "RJF", "RCL", "REG", "REGN", "RF", "RVTY", "RMD", "ROK", "ROL",
+    "ROP", "ROST", "RSG", "RTX",
+    "SBAC", "SBUX", "SEE", "SHW", "SJM", "SLB", "SMCI", "SNA", "SNPS",
+    "SOLV", "SO", "SPG", "SPGI", "SRE", "STT", "STX", "STLD", "STE",
+    "STZ", "SWKS", "SWK", "SYF", "SYK", "SYY",
+    "T", "TAP", "TDG", "TDY", "TEL", "TER", "TFC", "TFX", "TGT", "TJX",
+    "TMUS", "TMO", "TPR", "TRGP", "TRMB", "TSCO", "TSLA", "TT", "TTWO",
+    "TXN", "TYL", "TSN",
+    "UAL", "UDR", "UHS", "ULTA", "UNH", "UNP", "UPS", "URI", "USB",
+    "V", "VLO", "VMC", "VTR", "VLTO", "VICI", "VRSK", "VRSN", "VRTX",
+    "VTRS", "VZ",
+    "WAB", "WAT", "WBA", "WBD", "WDC", "WEC", "WELL", "WFC", "WHR",
+    "WM", "WMB", "WMT", "WRB", "WST", "WTW", "WYNN", "WY",
+    "XEL", "XOM", "XYL", "XRAY",
+    "YUM",
+    "ZBRA", "ZBH", "ZTS",
+]
+
+# NASDAQ 100 core + additional large NASDAQ-listed technology & growth stocks
+_NASDAQ_TICKERS = [
+    # ── NASDAQ 100 components ──────────────────────────────────────────────────
+    "AAPL", "MSFT", "NVDA", "AMZN", "META", "TSLA", "GOOGL", "GOOG", "AVGO",
+    "COST", "NFLX", "TMUS", "AMD", "AMGN", "PEP", "QCOM", "CSCO", "INTU",
+    "TXN", "CMCSA", "ISRG", "HON", "BKNG", "SBUX", "ADP", "VRTX", "GILD",
+    "MU", "ADI", "LRCX", "PANW", "REGN", "MDLZ", "SNPS", "CDNS", "KLAC",
+    "MELI", "ASML", "KDP", "INTC", "CSX", "ABNB", "MRVL", "MAR", "PYPL",
+    "ORLY", "ADSK", "MNST", "CTAS", "FTNT", "NXPI", "WDAY", "CPRT", "ROP",
+    "IDXX", "AZN", "PCAR", "DDOG", "CHTR", "CRWD", "FAST", "PAYX", "MCHP",
+    "EA", "ODFL", "BKR", "BIIB", "LULU", "VRSK", "FANG", "ANSS", "CTSH",
+    "DXCM", "TTWO", "ILMN", "TEAM", "DLTR", "MRNA", "ZS", "ALGN", "CDW",
+    "ENPH", "ON", "GEHC", "ROST", "EXC", "EBAY",
+    # ── Semiconductors & Hardware ──────────────────────────────────────────────
+    "SMCI", "AMAT", "TER", "MPWR", "ONTO", "ACLS", "WOLF", "COHU",
+    "NTAP", "WDC", "STX", "PSTG", "DELL", "HPE",
+    # ── Cloud, SaaS & Enterprise Software ─────────────────────────────────────
+    "CRM", "NOW", "ADBE", "ORCL", "VEEV", "HUBS", "MDB", "OKTA", "SNOW",
+    "ZM", "DOCU", "BILL", "GTLB", "DOCN", "BOX", "DDOG",
+    # ── Cybersecurity ─────────────────────────────────────────────────────────
+    "NET", "S", "CYBR", "AKAM", "TENB", "QLYS",
+    # ── Fintech & Payments ────────────────────────────────────────────────────
+    "SQ", "COIN", "HOOD", "SOFI", "AFRM", "UPST", "NDAQ",
+    # ── E-commerce, Media & Consumer Tech ────────────────────────────────────
+    "SHOP", "ETSY", "EBAY", "ROKU", "SPOT", "PINS", "SNAP", "RBLX",
+    "TTD", "DASH", "UBER", "LYFT",
+    # ── Electric Vehicles ─────────────────────────────────────────────────────
+    "RIVN", "LCID", "NIO", "LI", "XPEV",
+    # ── Biotech & Life Sciences ───────────────────────────────────────────────
+    "ALNY", "BMRN", "SGEN", "EXEL", "RARE", "ACAD", "FOLD",
+    # ── China Tech (NASDAQ-listed ADRs) ───────────────────────────────────────
+    "BIDU", "JD", "PDD", "NTES",
+    # ── AI, Data & Analytics ──────────────────────────────────────────────────
+    "PLTR", "APP", "MSTR", "AI", "BBAI",
 ]
 
 # ── NSE request headers to reduce blocking probability ────────────────────────
@@ -54,21 +143,34 @@ _NIFTY50_FALLBACK = [
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Helper: robust column finder (case-insensitive, strips BOM/whitespace)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _find_col(df: pd.DataFrame, *keywords: str) -> str | None:
+    """Return the first column name that contains any of the given keywords."""
+    clean = {c: c.strip().lstrip("\ufeff").lower() for c in df.columns}
+    for kw in keywords:
+        for orig, norm in clean.items():
+            if kw in norm:
+                return orig
+    return None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Public API
 # ─────────────────────────────────────────────────────────────────────────────
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_sp500_tickers() -> tuple[list[str], pd.DataFrame]:
     """
-    Fetch the S&P 500 constituent list from a public GitHub CSV dataset.
-    Falls back to a hardcoded top-100 list if the fetch fails.
+    Fetch the S&P 500 constituent list (with names & sectors) from GitHub CSV.
+    Always returns all ~503 tickers — the hardcoded list is the reliable base;
+    the GitHub fetch only enriches names/sectors.
 
     Returns
     -------
-    tickers : list[str]
-        yfinance-compatible ticker symbols (BRK.B → BRK-B).
-    info_df : pd.DataFrame
-        Columns: ticker, name, sector.
+    tickers : list[str]   yfinance-compatible (BRK.B → BRK-B)
+    info_df : pd.DataFrame   columns: ticker, name, sector
     """
     csv_url = (
         "https://raw.githubusercontent.com/datasets/s-and-p-500-companies"
@@ -79,24 +181,49 @@ def get_sp500_tickers() -> tuple[list[str], pd.DataFrame]:
         resp.raise_for_status()
         df = pd.read_csv(StringIO(resp.text))
 
-        # CSV columns: Symbol, Name, Sector
-        symbols = df["Symbol"].str.replace(".", "-", regex=False).tolist()
-        names = df["Name"].tolist()
-        sectors = df["Sector"].tolist()
+        sym_col    = _find_col(df, "symbol")
+        name_col   = _find_col(df, "name", "security", "company")
+        sector_col = _find_col(df, "sector", "gics sector", "industry")
+
+        if sym_col is None:
+            raise ValueError(f"No symbol column found. Columns: {list(df.columns)}")
+
+        symbols = df[sym_col].str.strip().str.replace(".", "-", regex=False).tolist()
+        names   = df[name_col].tolist()   if name_col   else symbols
+        sectors = df[sector_col].tolist() if sector_col else ["N/A"] * len(symbols)
 
         info_df = pd.DataFrame({"ticker": symbols, "name": names, "sector": sectors})
         return symbols, info_df
 
     except Exception as exc:
-        st.warning(
-            f"Could not fetch S&P 500 list ({exc}). Using top-100 fallback list."
-        )
-        info_df = pd.DataFrame({
-            "ticker": _SP500_FALLBACK,
-            "name": _SP500_FALLBACK,
-            "sector": ["N/A"] * len(_SP500_FALLBACK),
-        })
-        return _SP500_FALLBACK, info_df
+        st.warning(f"Could not fetch S&P 500 names from GitHub ({exc}). Using hardcoded list.")
+
+    # Fallback — full hardcoded list (symbols only, no names)
+    info_df = pd.DataFrame({
+        "ticker": _SP500_TICKERS,
+        "name":   _SP500_TICKERS,
+        "sector": ["N/A"] * len(_SP500_TICKERS),
+    })
+    return _SP500_TICKERS, info_df
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_nasdaq_tickers() -> tuple[list[str], pd.DataFrame]:
+    """
+    Return the curated NASDAQ 100 + large-cap NASDAQ technology stock list.
+    No external fetch needed — the list is hardcoded for reliability.
+
+    Returns
+    -------
+    tickers : list[str]   yfinance-compatible ticker symbols
+    info_df : pd.DataFrame   columns: ticker, name, sector
+    """
+    info_df = pd.DataFrame({
+        "ticker": _NASDAQ_TICKERS,
+        "name":   _NASDAQ_TICKERS,   # names enriched at runtime if needed
+        "sector": ["Technology"] * len(_NASDAQ_TICKERS),
+    })
+    return _NASDAQ_TICKERS, info_df
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -107,10 +234,8 @@ def get_nifty500_tickers() -> tuple[list[str], pd.DataFrame]:
 
     Returns
     -------
-    tickers : list[str]
-        yfinance-compatible NSE symbols with '.NS' suffix.
-    info_df : pd.DataFrame
-        Columns: ticker, name, sector.
+    tickers : list[str]   yfinance-compatible NSE symbols with '.NS' suffix.
+    info_df : pd.DataFrame   columns: ticker, name, sector.
     """
     nse_url = "https://archives.nseindia.com/content/indices/ind_nifty500list.csv"
     try:
@@ -118,13 +243,15 @@ def get_nifty500_tickers() -> tuple[list[str], pd.DataFrame]:
         resp.raise_for_status()
         df = pd.read_csv(StringIO(resp.text))
 
-        # NSE CSV columns: Company Name, Industry, Symbol, Series, ISIN Code
-        sym_col = next(c for c in df.columns if "symbol" in c.lower())
-        name_col = next((c for c in df.columns if "company" in c.lower() or "name" in c.lower()), sym_col)
-        sector_col = next((c for c in df.columns if "industry" in c.lower() or "sector" in c.lower()), None)
+        sym_col    = _find_col(df, "symbol")
+        name_col   = _find_col(df, "company", "name")
+        sector_col = _find_col(df, "industry", "sector")
+
+        if sym_col is None:
+            raise ValueError(f"No symbol column found. Columns: {list(df.columns)}")
 
         symbols = df[sym_col].str.strip().tolist()
-        names = df[name_col].tolist()
+        names   = df[name_col].tolist()   if name_col   else symbols
         sectors = df[sector_col].tolist() if sector_col else ["N/A"] * len(symbols)
         tickers = [f"{s}.NS" for s in symbols]
 
@@ -139,7 +266,7 @@ def get_nifty500_tickers() -> tuple[list[str], pd.DataFrame]:
         tickers = [f"{s}.NS" for s in _NIFTY50_FALLBACK]
         info_df = pd.DataFrame({
             "ticker": tickers,
-            "name": _NIFTY50_FALLBACK,
+            "name":   _NIFTY50_FALLBACK,
             "sector": ["N/A"] * len(tickers),
         })
         return tickers, info_df

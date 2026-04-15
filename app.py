@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
-from modules.data import get_sp500_tickers, get_nifty500_tickers, download_batch
+from modules.data import get_sp500_tickers, get_nifty500_tickers, get_nasdaq_tickers, download_batch
 from modules.analysis import analyze_stock
 from modules.scoring import calculate_score, rank_results
 from modules.charts import create_price_chart, create_score_radar
@@ -149,7 +149,7 @@ def _render_sidebar() -> dict:
 
         market = st.selectbox(
             "Market",
-            ["🇮🇳 India (NSE Nifty 500)", "🇺🇸 US (S&P 500)"],
+            ["🇮🇳 India (NSE Nifty 500)", "🇺🇸 US (S&P 500)", "🇺🇸 NASDAQ"],
             index=0,
         )
         st.divider()
@@ -282,8 +282,11 @@ def _run_screener(settings: dict) -> list[dict] | None:
         if is_india:
             st.write("Fetching Nifty 500 from NSE…")
             tickers, info_df = get_nifty500_tickers()
+        elif "NASDAQ" in settings["market"]:
+            st.write("Loading NASDAQ stock list…")
+            tickers, info_df = get_nasdaq_tickers()
         else:
-            st.write("Fetching S&P 500 from Wikipedia…")
+            st.write("Loading S&P 500 list…")
             tickers, info_df = get_sp500_tickers()
 
         if not tickers:
