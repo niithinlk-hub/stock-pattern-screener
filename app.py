@@ -392,7 +392,7 @@ def _render_results_table(filtered: list[dict]):
     df_table = _build_table(filtered)
     st.dataframe(
         df_table,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         column_config={
             "Score": st.column_config.ProgressColumn(
@@ -500,12 +500,12 @@ def _render_individual(filtered: list[dict]):
             st.info("Weekly data not available for this period selection.")
             timeframe = "daily"
         fig_price = create_price_chart(r, timeframe=timeframe)
-        st.plotly_chart(fig_price, use_container_width=True)
+        st.plotly_chart(fig_price, width="stretch")
 
     with radar_col:
         st.markdown("#### Score Radar")
         fig_radar = create_score_radar(sc)
-        st.plotly_chart(fig_radar, use_container_width=True)
+        st.plotly_chart(fig_radar, width="stretch")
 
         st.markdown("**MA Alignment**")
         for label, flag in [

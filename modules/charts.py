@@ -7,6 +7,7 @@ All charts use the dark 'plotly_dark' template.
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from modules.analysis import _compute_indicators
 
 _BG = "#0E1117"
 _GRID = "#1E2530"
@@ -37,7 +38,6 @@ def create_price_chart(analysis: dict, timeframe: str = "daily") -> go.Figure:
     """
     if timeframe == "weekly" and analysis.get("_df_weekly") is not None:
         df = analysis["_df_weekly"]
-        from modules.analysis import _compute_indicators
         ind = _compute_indicators(df)
         title_suffix = "Weekly"
     else:
